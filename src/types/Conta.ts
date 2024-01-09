@@ -1,11 +1,13 @@
+import { Amazenador } from "./Armazanedor.js";
+import { ValidaDebito, ValidaDeposito } from "./Decorators.js";
 import { GrupoTransacao } from "./GrupoTransacao.js";
 import { TipoTransacao } from "./TipoTransacao.js";
 import { Transacao } from "./Transacao.js";
 
 export class Conta {
     protected nome: string;
-    protected saldo: number  = JSON.parse(localStorage.getItem('saldo')) || 0;
-    private transacoes: Transacao[] = JSON.parse(localStorage.getItem('saldo'), (key: string, value: any) => {
+    protected saldo: number  = Amazenador.obter<number>('saldo') || 0;
+    private transacoes: Transacao[] = Amazenador.obter<Transacao[]>(('saldo'), (key: string, value: any) => {
         if (key === 'data') return new Date(value);
 
         return value;
@@ -62,31 +64,34 @@ export class Conta {
 
         this.transacoes.push(novaTransacao);
         console.log(this.getGruposTransacoes());
-        localStorage.setItem("transacoes", JSON.stringify(this.transacoes));
+        Amazenador.salvar("transacoes", JSON.stringify(this.transacoes));
     }
 
+    @ValidaDebito
     debitar(valor: number): void {
-        if (valor <= 0) {
-            throw new Error("O valor a ser debitado deve ser maior que zero!");
-        }
-        if (valor > this.saldo) {
-            throw new Error("Saldo insuficiente!");
-        }
-    
         this.saldo -= valor;
-        localStorage.setItem("saldo", this.saldo.toString());
+        Amazenador.salvar("saldo", this.saldo.toString());
     }
 
+    @ValidaDeposito
     depositar(valor: number): void {
-        if (valor <= 0) {
-            throw new Error("O valor a ser depositado deve ser maior que zero!");
-        }
-    
         this.saldo += valor;
         localStorage.setItem("saldo", this.saldo.toString());
     }
 }
 
+export class ContaPremium extends Conta {
+    registrarTransacao(transacao: Transacao): void {
+        if (transacao.tipoTransacao === TipoTransacao.DEPOSITO){
+            console.log('Ganhou um bonus de .50 centravos');
+            transacao.valor += 0.5;
+        }
+
+        super.registrarTransacao(transacao);
+    }
+}
+
 const conta = new Conta('Renan');
+const contaPremium = new ContaPremium('Renan 2');
 console.log(conta.getTitular());
 export default conta;
